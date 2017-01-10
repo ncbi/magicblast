@@ -1,2 +1,1 @@
-# magicblast
 Magic-BLAST documentation
