@@ -1,7 +1,7 @@
 ---
 layout: page
-category: doc
-title: "Mutlithreading"
+category: cook
+title: "Multi-threading"
 order: 6
 ---
 
