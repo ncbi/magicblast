@@ -11,8 +11,6 @@ up the score of all exons. This is very different from other versions of
 BLAST, where each exon is scored as a separate hit and read-pairing is
 ignored.
 
-[Download Magic-BLAST from here](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/magicblast/LATEST)
-
 Magic-BLAST incorporates within the NCBI BLAST code framework ideas
 developed in the NCBI Magic pipeline, in particular hit extensions by
 local walk and jump [(http://www.ncbi.nlm.nih.gov/pubmed/26109056)](http://www.ncbi.nlm.nih.gov/pubmed/26109056), and recursive clipping of
@@ -31,9 +29,9 @@ or a FASTA file. It is preferable to use BLAST database for large genomes,
 such as human, or transcript collections, such as all of RefSeq, Ensembl,
 or AceView. See here on [how to create a BLAST database](/magicblast/doc/blastdb.html).
 
-The full list of options is listed when you use -help option.
+The full list of options is listed when you use ```-help``` option.
 
-Thank you for testing this code and providing us with feedback. Please,
-let us know of any desired option, problem or difficulty.
+Thank you for trying this tool and providing us with feedback. Please,
+let us know of any desired enhancement, problem or difficulty.
 
 E-mail boratyng@ncbi.nlm.nih.gov or blast-help@ncbi.nlm.nih.gov with questions or comments.

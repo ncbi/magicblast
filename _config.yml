@@ -20,7 +20,7 @@ codeurl: 'ftp://ftp.ncbi.nlm.nih.gov/blast/executables/magicblast/LATEST'
 # Default categories (in order) to appear in the navigation
 sections: [
     ['doc', 'Documentation'],
-    ['tut', 'Tutorial'],
+    ['cook', 'Cookbook'],
     ['ref', 'Reference'],
     ['dev', 'Developers'],
     ['post', 'Posts']
