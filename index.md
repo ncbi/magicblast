@@ -27,7 +27,7 @@ single file.
 The reference genome or transcriptome can be given as a BLAST database
 or a FASTA file. It is preferable to use BLAST database for large genomes,
 such as human, or transcript collections, such as all of RefSeq, Ensembl,
-or AceView. See here on [how to create a BLAST database](/magicblast/doc/blastdb.html).
+or AceView. See here on [how to create a BLAST database](/magicblast/cook/blastdb.html).
 
 The full list of options is listed when you use ```-help``` option.
 
