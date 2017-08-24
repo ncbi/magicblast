@@ -1,2 +1,2 @@
 Magic-BLAST documentation:
-https://boratyng.github.io/magicblast
+https://ncbi.github.io/magicblast
