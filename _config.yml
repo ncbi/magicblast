@@ -23,6 +23,7 @@ sections: [
     ['cook', 'Cookbook'],
     ['ref', 'Reference'],
     ['dev', 'Developers'],
+    ['release', 'Release Notes'],
     ['post', 'Posts']
 ]
 
