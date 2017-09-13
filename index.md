@@ -34,4 +34,4 @@ The full list of options is listed when you use ```-help``` option.
 Thank you for trying this tool and providing us with feedback. Please,
 let us know of any desired enhancement, problem or difficulty.
 
-E-mail boratyng@ncbi.nlm.nih.gov or blast-help@ncbi.nlm.nih.gov with questions or comments.
+E-mail blast-help@ncbi.nlm.nih.gov with questions or comments.
