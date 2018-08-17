@@ -18,6 +18,8 @@ mismatches near the edges of the reads, which avoids accumulating
 artefactual mismatches near splice sites and is needed to distinguish
 short indels from substitutions near the edges.
 
+More details about the algorithm and comparison with other similar tools are presented here: [https://www.biorxiv.org/content/early/2018/08/14/390013](https://www.biorxiv.org/content/early/2018/08/14/390013).
+
 We call the whole next generation run (from Illumina, Roche-454, ABI, or
 another sequencing platform excluding SOLiD), a query. The input reads may
 be provided as SRA accession or a file in a SRA, FASTA, and FASTQ format.
