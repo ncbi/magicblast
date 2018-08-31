@@ -1,0 +1,1 @@
+../21_HISAT2/align.tcsh
