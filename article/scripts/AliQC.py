@@ -1,5 +1,28 @@
 #!/usr/bin/env python3
-###############################################################################################
+# ===========================================================================
+#
+#                            PUBLIC DOMAIN NOTICE
+#               National Center for Biotechnology Information
+#
+#  This software/database is a "United States Government Work" under the
+#  terms of the United States Copyright Act.  It was written as part of
+#  the author's official duties as a United States Government employee and
+#  thus cannot be copyrighted.  This software/database is freely available
+#  to the public for use. The National Library of Medicine and the U.S.
+#  Government have not placed any restriction on its use or reproduction.
+#
+#  Although all reasonable efforts have been taken to ensure the accuracy
+#  and reliability of the software and data, the NLM and the U.S.
+#  Government do not and cannot warrant the performance or results that
+#  may be obtained by using this software or data. The NLM and the U.S.
+#  Government disclaim all warranties, express or implied, including
+#  warranties of performance, merchantability or fitness for any particular
+#  purpose.
+#
+#  Please cite the author in any work or product based on this material.
+#
+# ===========================================================================
+#
 # aliqc.py -- Calculate base alignment statistics for a SAM file
 #
 # Joe Meehan, NCTR, June 2012
@@ -227,8 +250,7 @@ def calc_seqc( a ):
                         #  aligned_length += a.cigar[i].size
                 elif type == "D": # Deletion from the reference
                         perfect_map = False # jfm 10/10/2012
-                        delstr = str(seq[a.cigar[i].ref_iv.chrom][ a.cigar[i].ref_iv.start : a.cigar[i].ref_iv.end ].seq) 
-                        delstr = delstr.upper()
+                        delstr = str(seq[a.cigar[i].ref_iv.chrom][ a.cigar[i].ref_iv.start : a.cigar[i].ref_iv.end ]).upper()
                         #
                         # Count deletion events, doublet deletions and triplet deletions (jfm 10/10/2012)
                         #
@@ -324,7 +346,7 @@ def calc_seqc( a ):
 
                         mapped_ref = mapped_ref + ( insert_char * a.cigar[i].size )
                         insstr = mapped_read[a.cigar[i].query_from : a.cigar[i].query_to ] 
-                        insstr = insstr.upper()
+                        insstr = insstr.upper()    
                         # Count insertion events doublet insertions and triplet insertions (jfm 10/10/2012)
                         nInsertions += 1   # single event do not add a.cigar[i].size
                         insert_len = a.cigar[i].size
