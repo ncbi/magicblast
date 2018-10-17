@@ -54,6 +54,7 @@ setenv methods "10_MagicBLAST  20_HISAT2_relaxed 21_HISAT2 30_STAR 31_STARlong  
 # setenv methods "40_TopHat2"
 # setenv methods "20_HISAT2_relaxed 21_HISAT2 "
 # setenv methods "10_MagicBLAST"
+# setenv methods "30_STAR 31_STARlong  32_STAR.2.6c"
 # setenv methods "10_MagicBLAST  20_HISAT2_relaxed 21_HISAT2 30_STAR 31_STARlong  32_STAR.2.6c"
 #############################################################################
 ## Datasets
@@ -78,17 +79,23 @@ setenv runs "$main_runs $HG19_runs  $PFAL_runs"
 # Additional PacBio runs from Brain and Testis
 setenv pacbio_runs "SRR5189652 SRR5189667"
 # Additional long paired end Illumina reads 
-# 2520_250 (from metastatic melanoma)  and 300+300 from MCF7 cells)
+# 250_250 (from metastatic melanoma)  and 300+300 from MCF7 cells)
 setenv long_illumina_runs "SRR5438850 SRR5437876"
-setenv runs "$main_runs $HG19_runs  $PFAL_runs $pacbio_runs $long_illumina_runs"
+# setenv runs "$main_runs $HG19_runs  $PFAL_runs $pacbio_runs $long_illumina_runs"
 # setenv runs "$long_illumina_runs"
 # setenv runs "$pacbio_runs"
 # setenv runs "PacBio Illumina"
-# setenv runs "Roche PacBio"
-# setenv runs "$runs PFALt1r1S HG19t1r1_50"
+# setenv runs "Roche PacBio iRefSeq "
+# setenv runs "$runs PFALt1r1S HG19t1r1_50 $pacbio_runs"
 # setenv runs "HG19t1r1_50"
+# setenv runs "PFALt1r1S"
 # setenv runs "$pacbio_runs"
+# setenv runs "$runs HG19t1r1_50 PFALt1r1S"
+setenv runs "$main_runs $HG19_runs  $PFAL_runs $pacbio_runs $long_illumina_runs PFALt1r1S HG19t1r1_50 "
 
+
+# This adapter is present in the PacBio SRR runs and gives a peak at 32 aligned bases = polyA + first 8 bp of adaptor
+# AAAAAAAAAAAAAAAAAAAAAAAAAAAAGTACTCT  GCGTTGATACCACTGCTTAGATCGGAAGAG
 #############################################################################
 ## Fasta and Fastq files
 ## All runs fasta or fastq files are in the directories Fasta/$run
@@ -216,8 +223,11 @@ if (! -d RESULTS) mkdir RESULTS
 ## Our source code is available for analysis and recompilation in machine optimized mode
 ## in the source_code directory, together with instructions in the correspondng README file.
 
-echo -n "## README $1 : "
+echo -n "## MagicBlastPaperMasterScript.tcsh $1 : "
 date
+
+echo "runs = $runs"
+echo "methods = $methods"
 
 if ($1 == init) goto phase_Init
 if ($1 == download) goto phase_Download
@@ -250,8 +260,10 @@ echo 'errors : count the errors in te BAM files using the NM:i:x optional field'
 echo 'subs   : count substitutions in the human and malaria Baruzzo benchmarks'
 echo 'aliLn  : export histogram of aligned lengths'
 echo 'export : export QC and ROC curve of intron discovery'
+
+goto phaseLoop
+
 phase_Init:
-  # already done
 goto phaseLoop
 
 ##############################################################################
@@ -273,6 +285,28 @@ foreach run ( $HG19_runs  $PFAL_runs)
     popd
   endif
 end
+
+set run=HG19t1r1_50
+if (! -d Fasta/$run) then
+  echo "preparing the 5+50 clipped run"
+  mkdir Fasta/$run
+  pushd  Fasta/$run
+    ln -s ../../Reference_genome/HG19.Baruzzo.genome.fasta.gz genome.gz
+    ../../bin/dna2dna -i ../HG19t1r1/HG19t1r1.forward.fasta.gz -gzo -o $run.forward -rightClipAt 50
+    ../../bin/dna2dna -i ../HG19t1r1/HG19t1r1.reverse.fasta.gz -gzo -o $run.reverse -rightClipAt 50
+  popd
+endif
+
+set run=PFALt1r1S
+if (! -d Fasta/$run) then
+  echo "preparing the subsampled run"
+  mkdir Fasta/$run
+  pushd  Fasta/$run
+    ln -s ../../Reference_genome/PFAL.Baruzzo.genome.fasta.gz genome.gz
+    ../../bin/dna2dna -i ../PFALt1r1/PFALt1r1.forward.fasta.gz -gzo -o $run.forward -subsample 100
+    ../../bin/dna2dna -i ../PFALt1r1/PFALt1r1.reverse.fasta.gz -gzo -o $run.reverse -subsample 100
+  popd
+endif
 
 echo "checking iRefSeq"
 foreach run (iRefSeq)
@@ -580,8 +614,9 @@ foreach run ($runs)
       endif
       set target=`cat Fasta/$run/target`
       if (! -d $method/$run) mkdir -p $method/$run
-        # scripts/submit $method/$run "Aligners/$method/align.tcsh $method $run $target $read_1 $read_2" local
-        scripts/submit $method/$run "Aligners/$method/align.tcsh $method $run $target $read_1 $read_2" 64G UGE4
+        echo "align $method/$run"
+        scripts/submit $method/$run "Aligners/$method/align.tcsh $method $run $target $read_1 $read_2" 
+        # scripts/submit $method/$run "Aligners/$method/align.tcsh $method $run $target $read_1 $read_2" 64G UGE4
     endif
   end
 end
