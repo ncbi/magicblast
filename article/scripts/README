@@ -1,0 +1,84 @@
+# Aug 1st, 2018
+# Author: Jean Thierry-Mieg, NCBI/NLM/NIH
+# For questions, please email  mieg@ncbi.nlm.nih.gov
+
+
+The present directory contains scripts used in the Magic-BLAST paper analysis. 
+ 
+===========
+
+MagicBlastPaperMasterScript.tcsh
+  is the main scripts driving the whole analysis, it calls the other scripts and the C executables
+  present in the bin directory. It is described in the supplementary material of the paper.
+
+  How to use this scripts is described in the file ../README in the parent directory
+
+  Please check the file ../bin/README and verify if the executables work correctly on your machine
+  The main difficulty may come from the installation of HTSeq needed by AliQC.py.
+
+==========
+
+AliQC.py
+  is a python code developed in collaboration we Joe Meehan, FDA, for the
+  MAQC/SEQC project led by Leming Shi several years ago. It was ported
+  to python3 for the present project. The code has several functionalities
+  try 'python3 AliQC.py --help', and it is called with the proper parameters
+  by the master script. The purpose is to scan the SAM files, which can appear
+  indifferently as BAM, SAM, or SAM.gz files, and to extract detailed statistics
+  on the alignments and error patterns.
+  Notice that AliQC.py does not import a truth file, so all 
+  the measurement are intrinsic to the SAM file. 
+  Comparisons to the 'truth' of the benchmarks is delegated to the C code 'bin/sam2gold'.
+  AliQC calls HTSeq to parse the SAM files.
+
+==========
+
+HTSeq is described in the following publication:
+
+    Simon Anders, Paul Theodor Pyl, Wolfgang Huber
+    HTSeq — A Python framework to work with high-throughput sequencing data
+    Bioinformatics 2015 Jan 15; 31(2): 166–169.
+
+  It is  a python library that is used by AliQC.py solely to parse the SAM files into 
+  an object-oriented format, the analysis itself being programmed in AliQC.py.
+  It is very possible that HTSeq will not work on your machine because it directly
+  imports precompiled python object modules (.so files). If it does not work, please 
+  follow the instructions in scripts/HTSeq/README
+
+===========
+
+transpose (which calls transpose.awk)
+  is a simple utility to transpose any tab delimited file
+  Usage
+    cat f1 | scripts/transpose > f2
+  It is used by the other scripts.
+
+===========
+
+tags
+  is a simple utility to sort and count entries in the first column of a file
+  Usage
+    tags f1     # in this case the first column ends on the first tab or space
+    tags -t f1  # in this case the first column ends on the first tab
+  It is used by the other scripts.
+
+===========
+
+submit
+  is a script to control the parallelization of large programs
+  It is by default configured to allow 4 programs to run in parallel,
+  see line 51, e.g. edit (NCORE = 4) into (NCORE = 8).
+  By select 'farm = local' on line 16, the submissions would
+  become purely sequential. If you have access to a SLURM compute-farm, 
+  you could submit on the farm by uncommenting line 23
+  and editing your accounts around line 260. Other farms would be
+  relatively easy to configure.
+
+==========
+
+directErrorCount.awk, gff2cig.awk, introns_precision_recall.awk, transpose.awk
+  are format changing scripts called by the other scripts
+
+===========
+===========
+

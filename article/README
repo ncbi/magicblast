@@ -1,0 +1,128 @@
+# Aug 1st, 2018
+# Author: Jean Thierry-Mieg, NCBI/NLM/NIH
+# For questions, please email  mieg@ncbi.nlm.nih.gov
+
+
+The present directory contains the main scripts used in the Magic-BLAST paper analysis
+and can be used to replicate our analysis.
+ 
+===========
+
+The link for the paper is: https://github.com/ncbi/magicblast/tree/master/article
+
+Please clone the site:
+  git clone https://github.com/ncbi/magicblast
+  cd magicblast/article
+you should now see the present README file and 2 directories
+  scripts: see scripts/README for a description of the content
+  Aligners: see Aligners/README for a description of the content
+and a link to the main script:
+  MagicBlastPaperMasterScript.tcsh
+
+Try
+  tcsh MagicBlastPaperMasterScript.tcsh --help
+to see the list of the commands
+
+============
+
+You can control the number of runs to be analyzed
+by editing the definition of the variable $runs, around line 50
+of the main script  MagicBlastPaperMasterScript.tcsh
+
+You can control the number of aligners to be analyzed
+by editing the definition of the variable $methods, around line 27
+of the main script  MagicBlastPaperMasterScript.tcsh
+
+============
+
+init:
+
+  Please run
+    tcsh MagicBlastPaperMasterScript.tcsh init
+
+  This command should download from NCBI the linux binaries and the reference genomes used in this benchmark
+i.e. the 2 Baruzzo genomes for their human and their P.falciparum test sets  ls -ls Reference_genome/
+and the GRCh38 human genome which is used for iRefSeq and the Illumina, Roche and Pacbio runs
+
+  845712 -rw-r--r--. 1 mieg biodata 866005452 Aug  6 15:37 GRCh38.genome.fasta.gz
+       4 -rw-r--r--. 1 mieg biodata      1230 Aug  6 15:37 HG19.Baruzzo.genome.TM.txt
+  915076 -rw-r--r--. 1 mieg biodata 937034891 Aug  6 15:37 HG19.Baruzzo.genome.fasta.gz
+       4 -rw-r--r--. 1 mieg biodata       869 Aug  6 15:37 PFAL.Baruzzo.genome.TM.txt
+    6260 -rw-r--r--. 1 mieg biodata   6408381 Aug  6 15:37 PFAL.Baruzzo.genome.fasta.gz
+
+  init also creates the Fasta directory, but does not yet import the runs
+
+  The binaries are compiled for Linux 64bits Intel processors. See bin/README for details
+
+============
+
+download:
+
+  Please run
+    tcsh MagicBlastPaperMasterScript.tcsh download
+  This command may take a long time depending on the quality of your network connection
+it will load from NCBI the fasta/fastq files of all 18 runs:
+   9 Baruzzo HG19, 9 PFAL, Illumina, PacBio, Roche
+   plus the iRefSeq fasta and gff files. 
+
+All these files are copied into Fasta/$run
+Because some files are paired-end files, we expect 41 files and 4 symbolic links
+  ls -ls Fasta/*/*.fast[aq].gz | wc -l
+ 
+============
+============
+
+There is now a choice, you may either download from NCBI the precomputed SAM files
+or recompute them yourself
+
+============
+
+sam:
+  To download the precomputed SAM files, please run
+    tcsh MagicBlastPaperMasterScript.tcsh sam
+  This command may take a very long time depending on the quality of your network connection.
+It will load from NCBI the sam files for the 18 runs and for all aligners
+
+============
+
+align:
+  To align the data on your own machine, please run
+    tcsh MagicBlastPaperMasterScript.tcsh align
+  Notice that the script works in lazy mode:
+  if some sam files have been downloaded, the corresponding run will not be realigned
+
+  Realigning may take a very long time and requires very large RAM, some cases
+  demand more than 32 Gb of RAM. If you do not have a large hardware, we rather
+  recommend that you download the precomputed SAM files as explained above.
+  If you do realign, you may want to study and configure the self documented 
+  file scripts/submit which can help to fan out the alignments on a compute far.
+
+ 
+============
+============
+
+Analysis.
+
+  Once the sam files are available, they are analyzed by the following three sub-commands
+
+    aliqc : run AliQC.py on each run in the background (slow)
+       Notice that the command ' MagicBlastPaperMasterScript.tcsh aliqc' requires HTSeq
+       which is installed in scripts/HTSeq. This is expected to work, but if you encounter
+       a problem, please study the additional information in the file scripts/HTSeq/README
+
+       This command scans the SAM files, compares them to the reference genome and construct
+       detailed statistics on the quality of the alignment and the nature of the mismatches.
+    accuracy : analyze the intron found in all the BAM files and compares them to the benchmark truth
+       This command runs a dedicated C program, see info in the file bin/README, which 
+       compares the introns discovered in the SAM file to the benchmark truth.
+    export : export QC and ROC curve of intron discovery and the histogram of aligned lengths
+       The final tab delimited tables will appear in the RESULTS directory.
+
+
+=============
+=============
+
+
+
+
+

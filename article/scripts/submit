@@ -1,0 +1,562 @@
+#!/bin/tcsh -f
+# ===========================================================================
+#
+#                            PUBLIC DOMAIN NOTICE
+#               National Center for Biotechnology Information
+#
+#  This software/database is a "United States Government Work" under the
+#  terms of the United States Copyright Act.  It was written as part of
+#  the author's official duties as a United States Government employee and
+#  thus cannot be copyrighted.  This software/database is freely available
+#  to the public for use. The National Library of Medicine and the U.S.
+#  Government have not placed any restriction on its use or reproduction.
+#
+#  Although all reasonable efforts have been taken to ensure the accuracy
+#  and reliability of the software and data, the NLM and the U.S.
+#  Government do not and cannot warrant the performance or results that
+#  may be obtained by using this software or data. The NLM and the U.S.
+#  Government disclaim all warranties, express or implied, including
+#  warranties of performance, merchantability or fitness for any particular
+#  purpose.
+#
+#  Please cite the author in any work or product based on this material.
+#
+# ===========================================================================
+#
+#  Author Jean Thierry-Mieg
+#
+
+set reserve_unit=""
+set out_err="$1"
+set pgm="$2"
+set farm_requested="$3"
+# exit 0
+##############################################
+## Please select how you want to submit the job
+## by removing the # in front of one of the options
+## If you add a new way, or find a problem
+## please mail the edited script to
+## mieg@ncbi.nlm.nih.gov
+
+set farm=ZERO
+# set farm=local
+set farm=MULTICORE
+# set farm=UGE
+# set farm=BIOWULF
+# set farm=SGE
+# set farm=LSF
+# set farm=PARASOL
+# set farm=SLURM
+# set farm=TH2
+# set farm=FUDAN
+
+if ($?MAGIC_SUBMIT) then
+  set farm=$MAGIC_SUBMIT
+endif
+
+if ($?MAGIC_FARM) then
+  set farm=$MAGIC_FARM
+endif
+
+if ($farm == ZERO) then
+  echo "FATAL ERROR: please edit the first few lines of script subnit as documented in that file to specify your hardware"
+endif
+if ($farm != local && $farm != MULTICORE && $farm != UGE && $farm != BIOWULF &&$farm != TH2 && $farm != SLURM && $farm != FUDAN) then
+  echo 'FATAL ERROR: sorry, the only allowed value for $MAGIC_SUBMIT are'
+  echo '       local     : single threading on local machine'
+  echo '       MULTICORE : mutithreading on local machine, please configure NCORE (default 8) in scripts/submit'
+  echo '       UGE       : unified grid engine, successor to SGE: Sun Grid Engine, please cofigure the queue name (default unified) in  scripts/submit'
+  echo '       SLURM     : slurm clusters'
+  echo '       BIOWULF   : NIH Helix/Biowulf'
+  echo '       FUDAN     : ad-hoc for Fudan university'
+  echo "    currently you are requesting the unknown value: $farm"
+  echo '    Please configure scripts/submit or define $MAGIC_SUBMIT properly, nay help on new config for additional hardware would be welcome, thank you'
+  exit 1
+endif
+
+set NCORE=4  # number of jobs to run in parallel in MULTICORE case
+set mem_requested="16G"
+set reserve_mem=8
+set request_multicore=""
+if ($farm_requested == "32G") then
+  set farm_requested=""
+  set mem_requested="32G"
+  set reserve_mem=32
+else if ($farm_requested == "64G") then
+  set farm_requested=""
+  set mem_requested="64G"
+  set reserve_mem=64
+else if ($farm_requested == "128G") then
+  set farm_requested=""
+  set mem_requested="128G"
+  set reserve_mem=128
+else if ($farm_requested == "32G4T") then
+  set farm_requested=""
+  set mem_requested="32G"
+  set reserve_mem=32
+  set request_multicore="-pe multicore 4  -R y"
+else if ($farm_requested == "1G") then
+  set farm_requested=""
+  set mem_requested="1G"
+  set reserve_mem=1
+else if ($farm_requested == "UGE4") then
+  set farm_requested=""
+  set mem_requested="32G"
+  set reserve_mem=32
+  set farm=UGE4
+else
+  if ($farm_requested != "") set farm=$3
+endif
+
+if (! $?MAGIC) setenv MAGIC XXX
+##############################################
+## Verify that the farm variable has been configured
+if ($farm == ZERO) then
+  echo "# FATAL ERROR in  file $0"
+  echo "# You need to decide if the codes should run locally"
+  echo "# or be submitted to a compute farm using SGE, LSF ..."
+  echo "# Please remove one of the # in lines 14 to 18 of file scripts/submit"
+  echo "# Then test the configuration "
+  echo "       $0  test 'echo hello_world1 > test.txt'"
+  echo "       $0  wait"
+  echo "       $0  test 'echo hello_world2 >> test.txt'"
+  echo "       $0  wait"
+  echo "# Then check the content of the files test.out, test.err, test.txt"
+  echo "# test.err should contain timing info, test.out may be empty"
+  echo "# test.txt should contain hello_world1 and 2"
+  exit 1
+endif
+
+##############################################
+## Localize self
+if (! $?scripts) then
+  set scripts=`echo $0 | gawk '{i=index($1,"submit");a="./";if (i>1)a=substr($1,1,i-1);printf("%s",a);}'`
+endif
+# echo "scripts=$scripts"
+
+##############################################
+## Execute the program on the local machine
+
+if ($farm == local) then
+
+  if ("$out_err" == run || "$pgm" == run) exit 0
+
+  if ("$out_err" == wait || "$pgm" == wait) exit 0
+  if ("$out_err" == wait5 || "$pgm" == wait5) exit 0
+    # no need to wait on a local machine
+
+    echo "submit: pgm=###$pgm###    stdout/err=###$out_err.out/err###"
+    (eval "/bin/time -p $pgm" > $out_err.out) >& $out_err.err
+
+  exit 0
+
+endif
+
+##############################################
+## submit a program locally on a multicore machine
+
+if ($farm == MULTICORE) then
+
+# We use twice the number of jobs that should exe in parallel
+# because for each we run a wrapping script and the real command
+
+@ NCORE2 = 2 * $NCORE
+
+count_jobs:
+  # The objective is to count all jobs submitted by this system
+  # i do not know how to cath the process id i just submitted
+  # so i grep on schtroumpf that I include in all my summitted commands
+
+  # on MAC, probably a Unix BSD legacy, ps -lf does not give the full line, 
+  # if $USER is too long, it may not be listed enterely, prefer $uid
+  set  schtroumpf=schtroumpf 
+  set schtroumpf_exe=$scripts/$schtroumpf
+  if ($?MAGIC) set  schtroumpf=schtroumpf$MAGIC
+  if ($?MAGIC) set schtroumpf_exe=tmp/$schtroumpf
+  if (! -x tmp/$schtroumpf) then
+    cp  $scripts/schtroumpf tmp/$schtroumpf
+  endif
+  if ($?MAGIC_SUBMIT_USE_DASH) then
+     if ($MAGIC_SUBMIT_USE_DASH == 1) then 
+       set n=`ps -xu $uid | grep $schtroumpf | grep -vc "grep $schtroumpf"`
+     else
+        set n=`ps xu $uid | grep $schtroumpf | grep -vc "grep $schtroumpf"`
+     endif
+  else
+     set n=`ps xu $uid | grep $schtroumpf | grep -vc "grep $schtroumpf"`
+  endif
+  # echo "counted $n running little $schtroumpfs"
+
+  if ("$out_err" == run || "$pgm" == run) exit 0
+
+  if ("$out_err" == wait || "$pgm" == wait || "$out_err" == wait5 || "$pgm" == wait5) then
+    if ($n > 0) then 
+       sleep 2 # 2 seconds for example, may be 1 sec is ok  
+       if ("$out_err" == wait5 || "$pgm" == wait5) sleep 298  # complete to 5 minutes
+       goto count_jobs
+    endif
+  else
+    if ($n >= $NCORE2) then
+      sleep 5 # 5 seconds for example, may be 2 sec is ok
+      goto count_jobs
+    endif
+    echo "background submit: pgm=###$pgm###    stdout/err=###$out_err.out/err### $n running $schtroumpf_exe"
+    $schtroumpf_exe $out_err "$pgm" &
+    if ($?MAGIC_SUBMIT_DELAY) then
+      if ($MAGIC_SUBMIT_DELAY > 0) sleep $MAGIC_SUBMIT_DELAY
+    else
+      sleep .1  # 2 second delay before the next call to submit
+    endif
+  endif
+
+  exit 0
+
+endif # MULTICORE
+
+##############################################
+## Submit a program to the SGE Sun Grid Engine
+
+# UGE (Univa Grid Engine) is the continuation of SGE (Sun Grid Engine) with tiny syntax modifs
+# after implementing the modifs, we fall thru on SGE case
+if ($farm == UGE || $farm == UGE4) then
+  # source /netopt/uge/ncbi/common/settings.csh
+  unsetenv LD_RUN_PATH
+  unsetenv LD_LIBRARY_PATH
+  unsetenv DYLD_LIBRARY_PATH
+  set reserve_unit=G
+endif
+
+if ($farm == SGE || $farm == UGE || $farm == UGE4) then
+
+  setenv SGE_SUMMARY stderr
+  setenv SGE_NOMAIL
+
+  if ("$out_err" == run || "$pgm" == run) exit 0
+
+  if ("$out_err" == wait || "$pgm" == wait || "$out_err" == wait5 || "$pgm" == wait5) then
+    if ("$out_err" == wait5 || "$pgm" == wait5) then
+      $scripts/qusage 5
+    else
+      $scripts/qusage 1
+    endif
+  else
+    if (! $?queue) set queue=unified
+# set queue=low
+    set xx=""
+    if ($queue == test) set xx=',express=TRUE'
+
+    set isBlastp=""
+    if ("$pgm" =~ "*blastp*") set isBlastp="-l blastp_frosty"
+    echo "SGE submit: pgm=###$pgm###    stdout/err=###$out_err.out/err### queue=###$queue### isBlasp=###$isBlastp###"
+
+    if ($queue == profiling) then
+      set numero=`qsub -V -b y -j n -N $MAGIC -P unified $isBlastp -l  h_rt=86400,h_vmem=64G,mem_free=64G,m_mem_free=32G,cputype="*E5-2650*",m_core=16,mem_total=125G   -o $out_err.out -e $out_err.err "/bin/time -p $pgm"`
+    else if ($farm == UGE4) then
+      echo qsub -V -b y -j n -N $MAGIC -P  $queue -pe multicore 4  -R y $isBlastp -l h_rt=86400,h_vmem=$mem_requested,mem_free=$mem_requested,m_mem_free=$reserve_mem$reserve_unit$xx  -o $out_err.out -e $out_err.err \"/bin/time -p $pgm\"
+      set numero=`qsub -V -b y -j n -N $MAGIC -P  $queue -pe multicore 4  -R y $isBlastp -l h_rt=86400,h_vmem=$mem_requested,mem_free=$mem_requested,m_mem_free=$reserve_mem$reserve_unit$xx  -o $out_err.out -e $out_err.err "/bin/time -p $pgm"`
+    else
+# new syntax as of 2018 on UGE_ncbi qsub -l m_mem_free=4G,h_rt=14400,h_vmem=10G <other options> <job>
+             echo qsub -V -b y -j n -N $MAGIC -P  $queue  $isBlastp  $request_multicore -l h_rt=86400,h_vmem=$mem_requested,m_mem_free=$reserve_mem$reserve_unit$xx  -o $out_err.out -e $out_err.err \"/bin/time -p $pgm\"
+      set numero=`qsub -V -b y -j n -N $MAGIC -P  $queue  $isBlastp  $request_multicore -l h_rt=86400,h_vmem=$mem_requested,m_mem_free=$reserve_mem$reserve_unit$xx  -o $out_err.out -e $out_err.err "/bin/time -p $pgm"`
+    endif
+
+# multithreaded tasks
+# qsub -P unified -N $MAGIC -pe multicore 4  -R y <other options> job
+# see https://confluence.ncbi.nlm.nih.gov/pages/viewpage.action?pageId=13402915
+#  "-R y" tells SGE to reserve slots on a host, so that a single core job doesn't run first and keep your job waiting forever
+
+    # limit the speed of submissions to 1 per second, 14s is nice for ALIGN phase in SEQC_main
+    if (1) sleep .1
+    if ($?MAGIC_SUBMIT_DELAY) then
+      if ($MAGIC_SUBMIT_DELAY > 0) sleep $MAGIC_SUBMIT_DELAY
+    else
+      echo sleep .1
+    endif
+    echo "####numero=$numero####"
+  endif
+
+  exit 0
+
+endif
+
+##############################################
+## Submit a program to the SLURM system
+
+# SLURM is used on helix.nih and in obsolete Fudan
+
+if ($farm == SLURM) then
+  setenv farm SLURM
+  set partition=CLUSTER
+  if ("$out_err" == run || "$pgm" == run) exit 0
+
+  if ("$out_err" == wait || "$pgm" == wait || "$out_err" == wait5 || "$pgm" == wait5) then
+    if ("$out_err" == wait5 || "$pgm" == wait5) then
+      $scripts/qusage 5
+    else
+      $scripts/qusage 1
+    endif
+  else
+   set isShell=`echo $pgm | gawk '{if(substr($1,1,8) == "scripts/")n=1;}END{print n+0;}'`
+  yhresubmit:
+   if ($isShell == 1) then
+     echo "sbatch -N 1 -J $MAGIC --share --mem=24000 --time-min=120 --distribution=cyclic -o $out_err.out -e $out_err.err $pgm"
+           sbatch -N 1 -J $MAGIC --share --mem=24000 --time-min=120 --distribution=cyclic -o $out_err.out -e $out_err.err $pgm
+     set Status=$status
+   else
+     echo "srun -J $MAGIC  -o $out_err.out -e $out_err.err $pgm"
+           srun  -J $MAGIC  -o $out_err.out -e $out_err.err $pgm
+     set Status=$status
+   endif
+   if ($Status != 0) then
+     sleep 5
+     goto yhresubmit
+   endif
+
+    # limit the speed of submissions to 1 per second, 14s is nice for ALIGN phase in SEQC_main
+    if (1) sleep .1
+    if ($?MAGIC_SUBMIT_DELAY) then
+      if ($MAGIC_SUBMIT_DELAY > 0) sleep $MAGIC_SUBMIT_DELAY
+    else
+      echo sleep .1
+    endif
+ 
+  endif
+
+  exit 0
+
+endif
+
+##############################################
+## Submit a program to the BIOWULF cluster
+
+# BIOWULF 
+
+if ($farm == BIOWULF) then
+  setenv farm BIOWULF
+  # setenv TMPDIR "/lscratch/magic.$MAGIC"
+  # setenv TMPDIR "/lscratch/$SLURM_JOBID"
+# partition: norm (normal) quick (<4h) 
+  set partition=quick
+  if ("$out_err" == run || "$pgm" == run) exit 0
+
+  if ("$out_err" == wait || "$pgm" == wait || "$out_err" == wait5 || "$pgm" == wait5) then
+    if ("$out_err" == wait5 || "$pgm" == wait5) then
+      $scripts/qusage 5
+    else
+      $scripts/qusage 1
+    endif
+  else
+   set isShell=`echo $pgm | gawk '{if(substr($1,1,8) == "scripts/" || index($1,".tcsh")>0)n=1;}END{print n+0;}'`
+  yhresubmit:
+   if ($isShell == 1) then
+   echo "sbatch --ntasks 1 -J $MAGIC --share --gres=lscratch:100 --mem=24g --time-min=120 --distribution=cyclic --partition=$partition --output $out_err.out --error $out_err.err $pgm"
+   sbatch --ntasks 1 -J $MAGIC --share --gres=lscratch:100 --mem=24g --time-min=120 --distribution=cyclic --partition=$partition --output $out_err.out --error $out_err.err $pgm
+     set Status=$status
+   else
+     echo "srun -J $MAGIC  -o $out_err.out -e $out_err.err $pgm"
+           srun -J $MAGIC  -o $out_err.out -e $out_err.err $pgm
+     set Status=$status
+   endif
+   if ($Status != 0) then
+     sleep 5
+     goto yhresubmit
+   endif
+
+    # limit the speed of submissions to 1 per second, 14s is nice for ALIGN phase in SEQC_main
+    if (1) sleep .1
+    if ($?MAGIC_SUBMIT_DELAY) then
+      if ($MAGIC_SUBMIT_DELAY > 0) sleep $MAGIC_SUBMIT_DELAY
+    else
+      echo sleep .1
+    endif
+ 
+  endif
+
+  exit 0
+
+endif
+
+##############################################
+## Submit a program to the FUDAN system
+
+# FUDAN is used in Fudan
+
+if ($farm == FUDAN) then
+  setenv farm FUDAN
+  set partition=CLUSTER
+  if ("$out_err" == run || "$pgm" == run) exit 0
+
+  if ("$out_err" == wait || "$pgm" == wait || "$out_err" == wait5 || "$pgm" == wait5) then
+    if ("$out_err" == wait5 || "$pgm" == wait5) then
+      $scripts/qusage 5
+    else
+      $scripts/qusage 1
+    endif
+  else
+   set isShell=`echo $pgm | gawk '{if(substr($1,1,8) == "scripts/")n=1;}END{print n+0;}'`
+  fudanresubmit:
+   if ($isShell == 1) then
+     echo "qsub -N $MAGIC --share --mem=24000 --time-min=600 -o $out_err.out -e $out_err.err $pgm"
+           qsub -N $MAGIC --share --mem=24000 --time-min=600 -o $out_err.out -e $out_err.err $pgm
+     set Status=$status
+   else
+     echo "srun -N $MAGIC  -o $out_err.out -e $out_err.err $pgm"
+           srun -N $MAGIC  -o $out_err.out -e $out_err.err $pgm
+     set Status=$status
+   endif
+   if ($Status != 0) then
+     sleep 5
+     goto fudanresubmit
+   endif
+
+    # limit the speed of submissions to 1 per second, 14s is nice for ALIGN phase in SEQC_main
+    if (1) sleep .1
+    if ($?MAGIC_SUBMIT_DELAY) then
+      if ($MAGIC_SUBMIT_DELAY > 0) sleep $MAGIC_SUBMIT_DELAY
+    else
+      echo sleep .1
+    endif
+ 
+  endif
+
+  exit 0
+
+endif
+
+##############################################
+## Submit a program to the TH2 super computer
+
+# TH2 used on the chinese super computer
+
+if ($farm == TH2) then
+  setenv farm TH2
+  if ("$out_err" == run || "$pgm" == run) exit 0
+
+  if ("$out_err" == wait || "$pgm" == wait || "$out_err" == wait5 || "$pgm" == wait5) then
+    if ("$out_err" == wait5 || "$pgm" == wait5) then
+      $scripts/qusage 5
+    else
+      $scripts/qusage 1
+    endif
+  else
+   set isShell=`echo $pgm | gawk '{if(substr($1,1,8) == "scripts/")n=1;}END{print n+0;}'`
+  yhresubmit:
+   if ($isShell == 1) then
+     echo "yhbatch -p nsfc1 -N 1 -J $MAGIC --share --mem=16000 --time-min=600 --distribution=cyclic -o $out_err.out -e $out_err.err $pgm"
+           yhbatch -p nsfc1 -N 1 -J $MAGIC --share --mem=16000 --time-min=600 --distribution=cyclic  -o $out_err.out -e $out_err.err $pgm
+     set Status=$status
+   else
+     echo "yhrun -p nsfc1 -J $MAGIC  -o $out_err.out -e $out_err.err $pgm"
+           yhrun -p nsfc1 -J $MAGIC  -o $out_err.out -e $out_err.err $pgm
+     set Status=$status
+   endif
+   if ($Status != 0) then
+     sleep 5
+     goto yhresubmit
+   endif
+
+    # limit the speed of submissions to 1 per second, 14s is nice for ALIGN phase in SEQC_main
+    if (1) sleep .1
+    if ($?MAGIC_SUBMIT_DELAY) then
+      if ($MAGIC_SUBMIT_DELAY > 0) sleep $MAGIC_SUBMIT_DELAY
+    else
+      echo sleep .1
+    endif
+ 
+  endif
+
+  exit 0
+
+endif
+
+##############################################
+## Submit a program to the Parasol parallel batch system of Jim Kent
+
+if ($farm == PARASOL) then
+
+  if ("$out_err" == wait || "$pgm" == wait) then
+    if (-e tmp/parasol.job.list) then 
+      para problems
+      mv tmp/parasol.job.list tmp/parasol.job.done.$$
+    endif
+  else  if ("$out_err" == run || "$pgm" == run) then
+    parasol make tmp/Parasol/job.list 
+  else
+    if (! -d $CaliRootDir/tmp/Parasol) mkdir $CaliRootDir/tmp/Parasol
+    set toto=$CaliRootDir/tmp/Parasol/job.$$
+    echo '#!/bin/csh -e' > $toto
+    echo -n "cd  " >> $toto
+    pwd >> $toto
+    echo "(/bin/time -p $pgm > $out_err.out) >& $out_err.err " >>   $toto
+    echo "csh $toto" >> $CaliRootDir/tmp/Parasol/job.list
+  endif
+
+  exit 0
+
+endif
+
+##############################################
+## Submit a program to the LSF queue
+
+if ($farm == LSF) then
+
+  if ("$pgm" == wait) then
+    echo " i do not remember the LSF syntax to synchronize, maybe  'bjobs'  please edit scripts/submit and mail me the fix, thanks"
+  else if ("$pgm" != run) then
+    if (! $?queue) set queue=unified
+    echo " i do not remember the LSF syntax, please edit scripts/submit"
+    echo "LSF submit: pgm=###$pgm###    stdout/err=###$out_err.out/err### queue=###$queue###"
+    bsub -q $queue -R "select[$linux] rusage[cpu=1:mem=8000:duration=30000]" -o $out_err.err -e $out_err.err "/bin/time -p $pgm"
+
+    if ($?MAGIC_SUBMIT_DELAY) then
+      if ($MAGIC_SUBMIT_DELAY > 0) sleep $MAGIC_SUBMIT_DELAY
+    else
+      sleep 1
+    endif
+
+  endif
+  exit 1
+
+endif
+
+echo "ERROR : Unknown third parameter $farm in"
+echo "ERROR : $0 $*"
+echo "ERROR : The only acceptable values are: local, MULTICORE, SGE and LSF"
+echo "ERROR : Please edit the script or modify the call to the script"
+exit 1
+
+##############################################
+##############################################
+
+foreach ii (1 2 3 4 5 6 7 8 9 10 11 12 13 14)
+  pushd B$ii
+  ln -s tmp.$ii tmp
+  if (! -d tmp.$ii) mkdir tmp.$ii
+  ln -s ../TARGET
+  ln -s tmp.$ii/Batch$ii Fastc
+  ln -s ../LIMITS
+  mkdir RESULTS
+  mkdir MetaDB
+  cd MetaDB
+    ln -s ../../MetaDB/database
+    ln -s ../../MetaDB/wspec
+  cd ..
+  ln -s ../bin
+  ln -s ../metaData
+  ln -s ../scripts
+  ln -s scripts/MAGIC
+  cp ../ZZZZZ .
+  cp ../ZZZZZ.gz .
+  ln -s bin/xacembly bly
+  ln -s ./bin/tacembly tbly
+  popd
+end
+
+#############################################
+
+# find suspended jobs
+
+qstat > _qs1
+qwhat > _qs2
+cat _qs1 ZZZZZ _qs2 | gawk '/^ZZZZZ/{zz++;next;}{if(zz<1){if($5=="S")ss[$1]=1;next;}if(ss[$1]==1)print}' > _qs3
+cat _qs3 | gawk '{if($4=="scripts/alignAndSelectBest.tcsh")printf("qdel %s\n",$1);}' > _qs4

@@ -1,0 +1,1 @@
+gawk -F '\t' -f scripts/transpose.awk 
