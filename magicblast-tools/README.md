@@ -28,7 +28,7 @@ Usage
 
 ### Get intron locations from a SAM/BAM file
 ```
-get-introns --bam <SAM/BAM file> --gff <GFF/GTF/SAM/BAM file with annotation> --introns <output file>
+get-introns.py --bam <SAM/BAM file> --gff <GFF/GTF/SAM/BAM file with annotation> --introns <output file>
 ```
 
 The output is a tab delimited file with intron locations marked as KNOWN or NEW.
