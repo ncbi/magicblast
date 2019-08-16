@@ -2,7 +2,7 @@
 https://ncbi.github.io/magicblast
 
 ## Publication:
-GM Boratyn, J Thierry-Mieg, D Thierry-Mieg, B Busby, TL Madden (2018) **Magic-BLAST, an accurate DNA and RNA-seq aligner for long and short reads**, *bioRxiv 390013; doi: https://doi.org/10.1101/390013*
+Boratyn GM, Thierry-Mieg J, Thierry-Mieg D, Busby B, Madden TL. (2019) **Magic-BLAST, an accurate RNA-seq aligner for long and short reads.** *BMC Bioinformatics* 20: 405. \[[article](https://bmcbioinformatics.biomedcentral.com/articles/10.1186/s12859-019-2996-x)\]
 
 ## Scripts to recreate published experimental results:
 https://github.com/ncbi/magicblast/tree/master/article
