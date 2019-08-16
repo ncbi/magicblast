@@ -20,7 +20,7 @@ short indels from substitutions near the edges.
 
 More details about the algorithm and comparison with other similar tools are published here: 
 
-.
+aaaaaaaaa
 
 Boratyn GM, Thierry-Mieg J, Thierry-Mieg D, Busby B, Madden TL. (2019) **Magic-BLAST, an accurate RNA-seq aligner for long and short reads.** *BMC Bioinformatics* 20: 405. [article](https://bmcbioinformatics.biomedcentral.com/articles/10.1186/s12859-019-2996-x)
 
