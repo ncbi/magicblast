@@ -15,7 +15,7 @@ google_analytics_id: ''
 navigation: 2
 
 # URL to source code, used in _includes/footer.html
-codeurl: 'ftp://ftp.ncbi.nlm.nih.gov/blast/executables/magicblast/LATEST'
+codeurl: 'https://ftp.ncbi.nlm.nih.gov/blast/executables/magicblast/LATEST'
 
 # Default categories (in order) to appear in the navigation
 sections: [
