@@ -56,3 +56,5 @@ redcarpet:
         'tables',
         'hardwrap'
     ]
+
+theme: jekyll-theme-minimal
